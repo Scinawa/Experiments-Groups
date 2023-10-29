@@ -23,7 +23,7 @@ from utils import *
 def filter_dataset(dataset):
     
     real_dataset = []
-    len(dataset)
+    len("Original dataset length: {}".format(dataset))
 
     for i, current_g in enumerate(dataset):
 
@@ -32,10 +32,11 @@ def filter_dataset(dataset):
             print(".", end="")
                                          
             mezzo = dataset[i].to_dict()
-            
             real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
+
         else:
-            print("(S {} {})".format(i, nxgraph.shape[0]), end="")
+            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("\nLen real dataset {}".format(len(real_dataset)))
     return real_dataset
 
     
@@ -65,6 +66,8 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(args.seed)
+
+print("\n\n Working with {}\n\n".format(args.dataset))
 
 dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
 

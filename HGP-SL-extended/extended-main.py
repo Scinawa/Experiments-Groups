@@ -7,7 +7,7 @@ import pickle
 
 import torch
 import torch.nn.functional as F
-from models import Model
+from extended_models import Model
 from torch.utils.data import random_split
 from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
@@ -25,10 +25,9 @@ def redo_dataset(dataset, correlation):
     
     lista_cose_belle = []
     real_dataset = []
-    len(dataset)
+    len("Original dataset length: {}".format(dataset))
 
     for i, current_g in enumerate(dataset):
-        #print(i)
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
         if (nxgraph.shape[0] <= 24) and (nxgraph.shape[0] > 2):
             print(".", end="")
@@ -47,10 +46,10 @@ def redo_dataset(dataset, correlation):
 
             real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
         else:
-            print("(S {} {})".format(i, nxgraph.shape[0]), end="")
+            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("\nLen real dataset {}".format(len(real_dataset)))
+
     return real_dataset
-    #return dataset.index_select(lista_cose_belle)
-    #return (graphs, skew_spectrums)
 
 
 
@@ -69,40 +68,43 @@ parser.add_argument('--structure_learning', type=bool, default=True, help='wheth
 parser.add_argument('--pooling_ratio', type=float, default=0.5, help='pooling ratio')
 parser.add_argument('--dropout_ratio', type=float, default=0.0, help='dropout ratio')
 parser.add_argument('--lamb', type=float, default=1.0, help='trade-off parameter')
-parser.add_argument('--dataset', type=str, default='ENZYMES', help='DD/PROTEINS/NCI1/NCI109/Mutagenicity/ENZYMES')
+parser.add_argument('--dataset', type=str, default='PROTEINS', help='DD/PROTEINS/NCI1/NCI109/Mutagenicity/ENZYMES')
 parser.add_argument('--device', type=str, default='cpu:0', help='specify cuda devices')
 parser.add_argument('--correlation', type=int, default=2, help='which of the k-correlations do we want to use')
 parser.add_argument('--epochs', type=int, default=1000, help='maximum number of epochs')
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
+parser.add_argument('--precomputed_skew', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
+parser.add_argument('--save_precomputed_skew', type=bool, default=False, help='Save the precomputed k-reduced-skew spectrum')
+
+
 
 args = parser.parse_args()
 torch.manual_seed(args.seed)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(args.seed)
 
+print("\n\n Working with {}\n\n".format(args.dataset))
+
 old_dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
 
-# dataset = TUDataset(os.path.join('data', args.dataset), data_list=redo_dataset(old_dataset, args.correlation), name=args.dataset, use_node_attr=True )
+if args.precomputed_skew:
+    print("Using precomputed k-reduced-skew spectrum")
+    handle = open("TUDataset-{}-skew.pickle".format(args.dataset), 'rb')
+    dataset = pickle.load(handle)
+else: 
+    print("Computing k-reduced-skew spectrum from scratch")
+    dataset = redo_dataset(old_dataset, args.correlation)
+    if args.save_precomputed_skew:  
+        with open("TUDataset-{}-skew.pickle".format(args.dataset), 'wb') as handle:
+            pickle.dump(dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("Saved dataset")
 
-dataset = redo_dataset(old_dataset, args.correlation)
-
-args.num_classes = old_dataset.num_classes
-args.num_features = old_dataset.num_features
-
-
-# handle = open('TUDataset-skew.pickle', 'rb')
-# dataset = pickle.load(handle)
-
-
-#dataset = redo_dataset(dataset, args.correlation)
-# with open("TUDataset-skew.pickle", 'wb') as handle:
-#     pickle.dump(dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
-#     print("Saved dataset")
 
 args.num_classes = old_dataset.num_classes
 args.num_features = old_dataset.num_features
 
-print("after {}".format(args.num_features))
+
+
 
 
 num_training = int(len(dataset) * 0.8)
@@ -146,7 +148,7 @@ def train():
               'acc_val: {:.6f}'.format(acc_val), 'time: {:.6f}s'.format(time.time() - t))
 
         val_loss_values.append(loss_val)
-        torch.save(model.state_dict(), '{}.pth'.format(epoch))
+        torch.save(model.state_dict(), '{}.pth_extended'.format(epoch))
         if val_loss_values[-1] < min_loss:
             min_loss = val_loss_values[-1]
             best_epoch = epoch
@@ -157,13 +159,13 @@ def train():
         if patience_cnt == args.patience:
             break
 
-        files = glob.glob('*.pth')
+        files = glob.glob('*.pth_extended')
         for f in files:
             epoch_nb = int(f.split('.')[0])
             if epoch_nb < best_epoch:
                 os.remove(f)
 
-    files = glob.glob('*.pth')
+    files = glob.glob('*.pth_extended')
     for f in files:
         epoch_nb = int(f.split('.')[0])
         if epoch_nb > best_epoch:
@@ -190,7 +192,7 @@ if __name__ == '__main__':
     # Model training
     best_model = train()
     # Restore best model for test set
-    model.load_state_dict(torch.load('{}.pth'.format(best_model)))
+    model.load_state_dict(torch.load('{}.pth_extended'.format(best_model)))
     test_acc, test_loss = compute_test(test_loader)
     print('Test set results, loss = {:.6f}, accuracy = {:.6f}'.format(test_loss, test_acc))
 

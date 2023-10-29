@@ -72,8 +72,8 @@ class Model(torch.nn.Module):
         #import IPython
         #IPython.embed()
 
-        import pdb
-        pdb.set_trace()
+        #import pdb
+        #pdb.set_trace()
 
         # Process the additional vector input using 1D convolution
         vector_input = torch.from_numpy(np.array(data.skew))  # Assuming skew is your additional input
