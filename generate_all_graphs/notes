@@ -1,0 +1,17 @@
+ select=1 is number of machines
+-j oe do not touch  (output and error file)
+ different between project name and and job name: projecname = name in output files
+
+qsub scriptname
+ncpus=20 and mpiprocess = 20  cannot change
+
+if you change select=2 it means that you double ncpus and mpiprocesses
+
+
+qjob + jobID to check if it's running on multiple cores
+
+hpc pbs script qname
+hpc pbs diocan parallel20
+
+
+hpc pub summary
