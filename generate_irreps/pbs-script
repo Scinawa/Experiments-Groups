@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#PBS -P Project_Name_of_Job
+#PBS -q parallel20
+#PBS -l select=1:ncpus=20:mpiprocs=20:mem=90GB
+### You can increase mem request if your job needs more mem to run.
+#PBS -j oe
+#PBS -N Job_Name
+###  -N Job_Name: set filename for standard output/error message.
+
+cd $PBS_O_WORKDIR;   ## This line is needed, do not modify.
+
+##--- Put your exec/application commands below ---
+##--- For example:
+source /etc/profile.d/rec_modules.sh
+####module load ;  module list
+
+conda activate /hpctmp/quantumwuongo/envs/sage310
+### np=$( cat ${PBS_NODEFILE} |wc -l );  ### get number of CPUs
+#conda activate /hpctmp/quantumwuongo/envs/sage310/
+
+for i in {58..80}
+do
+  echo "[Bashozzo]: Working with $i"
+  mkdir -p /hpctmp/quantumwuongo/data/representations/$i
+  #python3 irrep.py 2 $i
+  conda run -p /hpctmp/quantumwuongo/envs/sage310/ python3 /home/svu/cqtales/generate_irreps/irrep.py 2 $i
+done
