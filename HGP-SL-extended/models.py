@@ -32,20 +32,17 @@ class Model(torch.nn.Module):
         self.lin3 = torch.nn.Linear(self.nhid // 2, self.num_classes)
 
     def forward(self, data):
-        #print("inside forward")
-        # import IPython
-        # IPython.embed()
-
-
         x, edge_index, batch = data.x, data.edge_index, data.batch
         edge_attr = None
 
+        # print("orig - stopped before conv2")
+        # import pdb
+        # pdb.set_trace()
+
         x = F.relu(self.conv1(x, edge_index, edge_attr))
-
-
         x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)
-
         x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
+
 
 
 
@@ -56,8 +53,14 @@ class Model(torch.nn.Module):
         x = F.relu(self.conv3(x, edge_index, edge_attr))
         x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
+        # print("orig- stopped before the sum")
+        # import pdb
+        # pdb.set_trace()
 
-        x = F.relu(x1) + F.relu(x2) + F.relu(x3)
+        x = F.relu(x1) + F.relu(x2) + F.relu(x3)   # in resnet
+        # x = F.relu(x1 + x2 + x3)  # skip connection
+
+        
 
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)

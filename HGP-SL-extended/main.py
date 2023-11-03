@@ -12,6 +12,13 @@ from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 import torch_geometric.utils 
 
+import random
+#random.seed(3)
+#torch.manual_seed(3)
+import warnings
+warnings.filterwarnings("ignore")
+# torch.use_deterministic_algorithms(True)
+
 import networkx as nx
 import tqdm
 

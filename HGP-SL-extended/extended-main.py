@@ -13,6 +13,16 @@ from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 import torch_geometric.utils 
 
+
+import random
+random.seed(3)
+torch.manual_seed(3)
+import warnings
+warnings.filterwarnings("ignore")
+torch.use_deterministic_algorithms(True)
+
+
+
 import networkx as nx
 import tqdm
 
@@ -38,9 +48,10 @@ def redo_dataset(dataset, correlation):
             func_1o = create_func_on_group_from_matrix_1orbit(nxgraph)
             #func_2o = create_func_on_group_from_matrix_2orbits(np.array(graph))
 
-            #skew_spectrums.append(
             skew = reduced_k_correlation(func_1o, k=correlation, method="extremedyn", vector=True )
-                                         
+
+            # print("len skew {}, nxgraph.shape[0]:{}".format(len(skew), nxgraph.shape[0]))                                 
+
             mezzo = dataset[i].to_dict()
             mezzo['skew']  = skew
 
@@ -70,11 +81,11 @@ parser.add_argument('--dropout_ratio', type=float, default=0.0, help='dropout ra
 parser.add_argument('--lamb', type=float, default=1.0, help='trade-off parameter')
 parser.add_argument('--dataset', type=str, default='PROTEINS', help='DD/PROTEINS/NCI1/NCI109/Mutagenicity/ENZYMES')
 parser.add_argument('--device', type=str, default='cpu:0', help='specify cuda devices')
-parser.add_argument('--correlation', type=int, default=2, help='which of the k-correlations do we want to use')
+parser.add_argument('--correlation', type=int, default=3, help='which of the k-correlations do we want to use')
 parser.add_argument('--epochs', type=int, default=1000, help='maximum number of epochs')
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
 parser.add_argument('--precomputed_skew', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
-parser.add_argument('--save_precomputed_skew', type=bool, default=False, help='Save the precomputed k-reduced-skew spectrum')
+parser.add_argument('--save_precomputed_skew', type=bool, default=True, help='Save the precomputed k-reduced-skew spectrum')
 
 
 
@@ -89,20 +100,24 @@ old_dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, u
 
 if args.precomputed_skew:
     print("Using precomputed k-reduced-skew spectrum")
-    handle = open("TUDataset-{}-skew.pickle".format(args.dataset), 'rb')
+    handle = open("TUDataset-{}-{}-skew.pickle".format(args.dataset, args.correlation), 'rb')
     dataset = pickle.load(handle)
 else: 
     print("Computing k-reduced-skew spectrum from scratch")
     dataset = redo_dataset(old_dataset, args.correlation)
     if args.save_precomputed_skew:  
-        with open("TUDataset-{}-skew.pickle".format(args.dataset), 'wb') as handle:
+        with open("TUDataset-{}-{}-skew.pickle".format(args.dataset, args.correlation), 'wb') as handle:
             pickle.dump(dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print("Saved dataset")
 
 
+import pdb
+pdb.set_trace()
+
 args.num_classes = old_dataset.num_classes
 args.num_features = old_dataset.num_features
 
+args.initial_nodes_skew = len(dataset[0].skew)
 
 
 
