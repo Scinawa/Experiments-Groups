@@ -77,8 +77,12 @@ if __name__ == '__main__':
     print(f"N={N}:\t", end='')
     beginning = datetime.now()
 
-    transversal = transversal_sn(N, N - 2)
-    #transversal = SymmetricGroup(N)
+    if int(sys.argv[2]) >= 6:
+        transversal = transversal_sn(N, N - 2)
+    else:
+        transversal = SymmetricGroup(N)
+
+    
     if N >= 2:
         parts = Partitions(N, inner=[N - 2]).list()
     else:
