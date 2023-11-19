@@ -21,5 +21,7 @@ We have the following experiments
 We have the following experimeents with Neural Networks:
 - `HGP-SL-extended`: from https://github.com/cszhangzhen/HGP-SL
 
-==== Useful links ====
+##### Useful links 
 - http://users.cecs.anu.edu.au/%7Ebdm/data/graphs.html
+
+pip install torch_geometric==1.7.2

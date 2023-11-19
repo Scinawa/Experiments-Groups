@@ -17,7 +17,9 @@ import random
 #torch.manual_seed(3)
 import warnings
 warnings.filterwarnings("ignore")
-# torch.use_deterministic_algorithms(True)
+
+# 
+#torch.use_deterministic_algorithms(True)
 
 import networkx as nx
 import tqdm
@@ -35,7 +37,7 @@ def filter_dataset(dataset):
     for i, current_g in enumerate(dataset):
 
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 24) and (nxgraph.shape[0] > 2):
+        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
             print(".", end="")
                                          
             mezzo = dataset[i].to_dict()
@@ -70,9 +72,10 @@ parser.add_argument('--epochs', type=int, default=1000, help='maximum number of 
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
 
 args = parser.parse_args()
-torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed(args.seed)
+
+#torch.manual_seed(args.seed)
+#if torch.cuda.is_available():
+#    torch.cuda.manual_seed(args.seed)
 
 print("\n\n Working with {}\n\n".format(args.dataset))
 

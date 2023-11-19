@@ -13,51 +13,141 @@ from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 import torch_geometric.utils 
 
+sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
+from spectrum_utils import * 
+from utils import *
 
 import random
-random.seed(3)
-torch.manual_seed(3)
+#random.seed(3)
+#torch.manual_seed(3)
+
 import warnings
 warnings.filterwarnings("ignore")
-torch.use_deterministic_algorithms(True)
+#torch.use_deterministic_algorithms(True)
 
 
 
 import networkx as nx
 import tqdm
 
-sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
-from spectrum_utils import * 
-from utils import *
 
 
-def redo_dataset(dataset, correlation):
-    
+
+def export_dataset_to_file(dataset, dataset_name, with_node_features=False):
+
+    lista_cose_belle = []
+    real_dataset = []
+    len("Original dataset length: {}".format(dataset))
+
+    # import pdb
+    # pdb.set_trace()
+
+    for i, current_g in enumerate(dataset):
+
+        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
+        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
+            print(".", end="")
+            lista_cose_belle.append(i)
+
+            if with_node_features ==False:
+                with open("{}/{}.pickle".format(dataset_name, i), 'wb') as handle:
+                    pickle.dump(nxgraph, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            else: 
+                with open("{}/{}.pickle".format(dataset_name, i), 'wb') as handle:
+                    pickle.dump((nxgraph, dataset[i].x ), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+        else:
+            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("\nLen real dataset {}".format(len(lista_cose_belle)))
+    print("Exported dataset to file")
+    return None
+
+
+
+
+
+
+
+
+def create_dataset(dataset, correlation, args):
+
     lista_cose_belle = []
     real_dataset = []
     len("Original dataset length: {}".format(dataset))
 
     for i, current_g in enumerate(dataset):
+
+        #import pdb
+        #pdb.set_trace()
+
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 24) and (nxgraph.shape[0] > 2):
+        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
             print(".", end="")
             lista_cose_belle.append(i)
 
-            
 
-            func_1o = create_func_on_group_from_matrix_1orbit(nxgraph)
-            #func_2o = create_func_on_group_from_matrix_2orbits(np.array(graph))
+            ##### CASE 2 we do everything on a single machine
+            #func_orbit = create_func_on_group_from_matrix_1orbit(nxgraph)
+            funzione = FuncOnGroup(nxgraph)
+            funzione.add_orbit(np.array([nxgraph[i][i] for i in range(nxgraph.shape[0])]))
 
-            skew = reduced_k_correlation(func_1o, k=correlation, method="extremedyn", vector=True )
+            for feature_number in range(dataset[i].x.shape[1]):  
+                funzione.add_orbit(dataset[i].x[:, feature_number])
 
-            # print("len skew {}, nxgraph.shape[0]:{}".format(len(skew), nxgraph.shape[0]))                                 
+
+            skew = reduced_k_correlation(funzione, k=correlation, method="extremedyn", vector=True )
 
             mezzo = dataset[i].to_dict()
-            mezzo['skew']  = skew
+            
+            with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'rb') as handle:
+                skew = pickle.load(handle)
+                mezzo['skew']  = skew
+
+
+            print("len skew {}, graph shape]:{}".format(len(skew), nxgraph.shape[0]))                                 
 
             real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
         else:
             print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("\nLen real dataset {}".format(len(real_dataset)))
+
+    return real_dataset
+
+
+def read_dataset(dataset, correlation, args):
+
+    lista_cose_belle = []
+    real_dataset = []
+    len("Original dataset length: {}".format(dataset))
+
+    for i, current_g in enumerate(dataset):
+
+
+        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
+        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
+            print(".", end="")
+            lista_cose_belle.append(i)
+
+            mezzo = dataset[i].to_dict()
+            
+
+
+            if args.multi_orbits:
+                with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'rb') as handle:
+                    skew = pickle.load(handle)
+            else: 
+                with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'rb') as handle:
+                    skew = pickle.load(handle)
+
+            mezzo['skew']  = skew
+
+            print("len skew {}, nxgraph.shape[0]:{}".format(len(skew), nxgraph.shape[0]))                                 
+
+            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
+        else:
+            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("READ DATASET")
     print("\nLen real dataset {}".format(len(real_dataset)))
 
     return real_dataset
@@ -84,35 +174,46 @@ parser.add_argument('--device', type=str, default='cpu:0', help='specify cuda de
 parser.add_argument('--correlation', type=int, default=3, help='which of the k-correlations do we want to use')
 parser.add_argument('--epochs', type=int, default=1000, help='maximum number of epochs')
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
-parser.add_argument('--precomputed_skew', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
+parser.add_argument('--read_dataset', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
 parser.add_argument('--save_precomputed_skew', type=bool, default=True, help='Save the precomputed k-reduced-skew spectrum')
+parser.add_argument('--export_dataset', type=bool, default=False, help='Export the dataset so you can create the mosksp')
+parser.add_argument('--multi_orbits', type=bool, default=False, help='Add node features to the sksp')
 
 
 
 args = parser.parse_args()
-torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed(args.seed)
+
+#torch.manual_seed(args.seed)
+
+#if torch.cuda.is_available():
+#    torch.cuda.manual_seed(args.seed)
 
 print("\n\n Working with {}\n\n".format(args.dataset))
 
 old_dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
 
-if args.precomputed_skew:
-    print("Using precomputed k-reduced-skew spectrum")
-    handle = open("TUDataset-{}-{}-skew.pickle".format(args.dataset, args.correlation), 'rb')
-    dataset = pickle.load(handle)
-else: 
+
+
+if args.read_dataset:
+    dataset = read_dataset(old_dataset, args.correlation, args)
+else:  
     print("Computing k-reduced-skew spectrum from scratch")
-    dataset = redo_dataset(old_dataset, args.correlation)
+    dataset = create_dataset(old_dataset, args.correlation, args)
+
+
+    ##### fast sksp on my machines to play with. 
     if args.save_precomputed_skew:  
         with open("TUDataset-{}-{}-skew.pickle".format(args.dataset, args.correlation), 'wb') as handle:
             pickle.dump(dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print("Saved dataset")
 
 
-import pdb
-pdb.set_trace()
+#### export dataset to be processed on another machine
+if args.export_dataset:
+    export_dataset_to_file(old_dataset, args.dataset, args.multi_orbits)
+    sys.exit(0)
+
+
 
 args.num_classes = old_dataset.num_classes
 args.num_features = old_dataset.num_features
@@ -205,6 +306,13 @@ def compute_test(loader):
 
 if __name__ == '__main__':
     # Model training
+
+    
+    filez = glob.glob('*.pth_extended')
+    for f in filez:
+        os.remove(f)
+    
+
     best_model = train()
     # Restore best model for test set
     model.load_state_dict(torch.load('{}.pth_extended'.format(best_model)))
