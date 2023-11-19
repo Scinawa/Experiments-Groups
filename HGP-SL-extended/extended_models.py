@@ -36,6 +36,8 @@ class Model(torch.nn.Module):
 
         self.lin1 = torch.nn.Linear(self.nhid * 3, self.nhid)
         self.lin2 = torch.nn.Linear(self.nhid, self.nhid // 2)
+        self.lin2b = torch.nn.Linear(self.nhid // 2, self.nhid // 2)
+
         self.lin3 = torch.nn.Linear(self.nhid // 2, self.num_classes)
 
 
@@ -44,9 +46,21 @@ class Model(torch.nn.Module):
         edge_attr = None
 
 
-        vector_input = torch.from_numpy(np.array(data.skew))  # Assuming skew is your additional input
+        try:
+            # it works on PROTEINS
+            vector_input = torch.from_numpy(np.array(data.skew))  # Assuming skew is your additional input
+            print("try ok")
+            import pdb
+            pdb.set_trace()
+        except:
+            print("try not ok")
+            # this is needed for ENZYMES
+            vector_input = torch.from_numpy(np.array(data.skew)[0])  # Assuming skew is your additional input
+            import pdb
+            pdb.set_trace()
+        
         vector_input = vector_input.unsqueeze(1)
-        xskew = F.relu(self.skewLin1(vector_input))
+        xskew = F.relu(self.skewLin1(vector_input.T))
         xskew = xskew.view(xskew.size(0), -1)
 
         x = F.relu(self.conv1(x, edge_index, edge_attr))
@@ -74,8 +88,14 @@ class Model(torch.nn.Module):
 
         x = F.relu(self.lin1(x))
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
         x = F.relu(self.lin2(x))
         x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+        x = F.relu(self.lin2b(x))
+        x = F.dropout(x, p=self.dropout_ratio, training=self.training)
+
+
         x = F.log_softmax(self.lin3(x), dim=-1)
 
         return x

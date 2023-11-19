@@ -5,7 +5,7 @@ import subprocess
 
 
 
-for filename in ["corre3.txt", "corre2.txt", "original.txt"]:
+for filename in ["corre3.txt", "corre2.txt", "original.txt", "corre2_new_nn.txt"]:
 
     result = subprocess.run("cat {} | grep Test ".format(filename), shell=True, capture_output=True, text=True)
 

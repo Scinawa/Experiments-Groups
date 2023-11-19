@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#rm -rf original.txt
+rm -rf original.txt
 rm -rf corre2.txt
 rm -rf corre3.txt
 

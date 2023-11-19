@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 import networkx as nx
 import tqdm
 
-sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
+sys.path.append('/Users/scinawa/workspace/grouptheoretical/multi-orbit-bispectrum-main')
 from spectrum_utils import * 
 from utils import *
 
@@ -37,7 +37,7 @@ def filter_dataset(dataset):
     for i, current_g in enumerate(dataset):
 
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
+        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
             print(".", end="")
                                          
             mezzo = dataset[i].to_dict()

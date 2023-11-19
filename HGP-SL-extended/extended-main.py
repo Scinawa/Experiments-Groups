@@ -13,7 +13,8 @@ from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 import torch_geometric.utils 
 
-sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
+#sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
+sys.path.append('/Users/scinawa/workspace/grouptheoretical/multi-orbit-bispectrum-main')
 from spectrum_utils import * 
 from utils import *
 
@@ -33,41 +34,6 @@ import tqdm
 
 
 
-def export_dataset_to_file(dataset, dataset_name, with_node_features=False):
-
-    lista_cose_belle = []
-    real_dataset = []
-    len("Original dataset length: {}".format(dataset))
-
-    # import pdb
-    # pdb.set_trace()
-
-    for i, current_g in enumerate(dataset):
-
-        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
-            print(".", end="")
-            lista_cose_belle.append(i)
-
-            if with_node_features ==False:
-                with open("{}/{}.pickle".format(dataset_name, i), 'wb') as handle:
-                    pickle.dump(nxgraph, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            else: 
-                with open("{}/{}.pickle".format(dataset_name, i), 'wb') as handle:
-                    pickle.dump((nxgraph, dataset[i].x ), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-        else:
-            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
-    print("\nLen real dataset {}".format(len(lista_cose_belle)))
-    print("Exported dataset to file")
-    return None
-
-
-
-
-
-
 
 
 def create_dataset(dataset, correlation, args):
@@ -78,34 +44,46 @@ def create_dataset(dataset, correlation, args):
 
     for i, current_g in enumerate(dataset):
 
-        #import pdb
-        #pdb.set_trace()
+        print("")
+
 
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
         if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
-            print(".", end="")
             lista_cose_belle.append(i)
 
 
-            ##### CASE 2 we do everything on a single machine
-            #func_orbit = create_func_on_group_from_matrix_1orbit(nxgraph)
             funzione = FuncOnGroup(nxgraph)
-            funzione.add_orbit(np.array([nxgraph[i][i] for i in range(nxgraph.shape[0])]))
 
-            for feature_number in range(dataset[i].x.shape[1]):  
-                funzione.add_orbit(dataset[i].x[:, feature_number])
+
+            if args.multi_orbits:
+                funzione.add_orbit(np.array([nxgraph[i][i] for i in range(nxgraph.shape[0])]))
+                for feature_number in range(dataset[i].x.shape[1]):  
+                    funzione.add_orbit(dataset[i].x[:, feature_number])
 
 
             skew = reduced_k_correlation(funzione, k=correlation, method="extremedyn", vector=True )
 
             mezzo = dataset[i].to_dict()
-            
-            with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'rb') as handle:
-                skew = pickle.load(handle)
-                mezzo['skew']  = skew
+            mezzo['skew']  = skew
 
+            if args.save_precomputed_skew:
+                if args.multi_orbits:
+                    path = "{}/{}_{}_mo.pickle".format(args.dataset, correlation, i)
+                    if not os.path.isfile(path):
+                        with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'wb') as handle:
+                            print(" d-mo ", end="")
+                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
+                else:
+                    path = "{}/{}_{}.pickle".format(args.dataset, correlation, i)
+                    print("path: {}".format(path))
+                    if not os.path.isfile(path):
+                        with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'wb') as handle:
+                            print(" d-so ", end="")
+                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
+                    else: 
+                        print("skipping")
 
-            print("len skew {}, graph shape]:{}".format(len(skew), nxgraph.shape[0]))                                 
+            print("len skew {}, graph shape:{}".format(len(skew), nxgraph.shape[0]), end='')        
 
             real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
         else:
@@ -122,11 +100,10 @@ def read_dataset(dataset, correlation, args):
     len("Original dataset length: {}".format(dataset))
 
     for i, current_g in enumerate(dataset):
-
+        print(".", end="")
 
         nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 59) and (nxgraph.shape[0] > 2):
-            print(".", end="")
+        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
             lista_cose_belle.append(i)
 
             mezzo = dataset[i].to_dict()
@@ -142,11 +119,12 @@ def read_dataset(dataset, correlation, args):
 
             mezzo['skew']  = skew
 
-            print("len skew {}, nxgraph.shape[0]:{}".format(len(skew), nxgraph.shape[0]))                                 
+            print("i: {}, len skew: {}, nxgraph.shape[0]: {}".format(i, len(skew), nxgraph.shape[0]))                                 
 
             real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
         else:
-            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
+            print("(Skipped: {} {})".format(i, nxgraph.shape[0]), end="", flush=True)
+   
     print("READ DATASET")
     print("\nLen real dataset {}".format(len(real_dataset)))
 
@@ -176,7 +154,6 @@ parser.add_argument('--epochs', type=int, default=1000, help='maximum number of 
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
 parser.add_argument('--read_dataset', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
 parser.add_argument('--save_precomputed_skew', type=bool, default=True, help='Save the precomputed k-reduced-skew spectrum')
-parser.add_argument('--export_dataset', type=bool, default=False, help='Export the dataset so you can create the mosksp')
 parser.add_argument('--multi_orbits', type=bool, default=False, help='Add node features to the sksp')
 
 
@@ -201,18 +178,8 @@ else:
     dataset = create_dataset(old_dataset, args.correlation, args)
 
 
-    ##### fast sksp on my machines to play with. 
-    if args.save_precomputed_skew:  
-        with open("TUDataset-{}-{}-skew.pickle".format(args.dataset, args.correlation), 'wb') as handle:
-            pickle.dump(dataset, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print("Saved dataset")
-
-
-#### export dataset to be processed on another machine
-if args.export_dataset:
-    export_dataset_to_file(old_dataset, args.dataset, args.multi_orbits)
-    sys.exit(0)
-
+#import pdb
+#pdb.set_trace()
 
 
 args.num_classes = old_dataset.num_classes
