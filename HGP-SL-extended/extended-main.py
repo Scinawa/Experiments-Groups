@@ -19,119 +19,13 @@ from spectrum_utils import *
 from utils import *
 
 import random
-#random.seed(3)
-#torch.manual_seed(3)
 
 import warnings
 warnings.filterwarnings("ignore")
-#torch.use_deterministic_algorithms(True)
-
 
 
 import networkx as nx
 import tqdm
-
-
-
-
-
-
-def create_dataset(dataset, correlation, args):
-
-    lista_cose_belle = []
-    real_dataset = []
-    len("Original dataset length: {}".format(dataset))
-
-    for i, current_g in enumerate(dataset):
-
-        print("")
-
-
-        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
-            lista_cose_belle.append(i)
-
-
-            funzione = FuncOnGroup(nxgraph)
-
-
-            if args.multi_orbits:
-                funzione.add_orbit(np.array([nxgraph[i][i] for i in range(nxgraph.shape[0])]))
-                for feature_number in range(dataset[i].x.shape[1]):  
-                    funzione.add_orbit(dataset[i].x[:, feature_number])
-
-
-            skew = reduced_k_correlation(funzione, k=correlation, method="extremedyn", vector=True )
-
-            mezzo = dataset[i].to_dict()
-            mezzo['skew']  = skew
-
-            if args.save_precomputed_skew:
-                if args.multi_orbits:
-                    path = "{}/{}_{}_mo.pickle".format(args.dataset, correlation, i)
-                    if not os.path.isfile(path):
-                        with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'wb') as handle:
-                            print(" d-mo ", end="")
-                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
-                else:
-                    path = "{}/{}_{}.pickle".format(args.dataset, correlation, i)
-                    print("path: {}".format(path))
-                    if not os.path.isfile(path):
-                        with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'wb') as handle:
-                            print(" d-so ", end="")
-                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
-                    else: 
-                        print("skipping")
-
-            print("len skew {}, graph shape:{}".format(len(skew), nxgraph.shape[0]), end='')        
-
-            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
-        else:
-            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
-    print("\nLen real dataset {}".format(len(real_dataset)))
-
-    return real_dataset
-
-
-def read_dataset(dataset, correlation, args):
-
-    lista_cose_belle = []
-    real_dataset = []
-    len("Original dataset length: {}".format(dataset))
-
-    for i, current_g in enumerate(dataset):
-        print(".", end="")
-
-        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
-            lista_cose_belle.append(i)
-
-            mezzo = dataset[i].to_dict()
-            
-
-
-            if args.multi_orbits:
-                with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'rb') as handle:
-                    skew = pickle.load(handle)
-            else: 
-                with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'rb') as handle:
-                    skew = pickle.load(handle)
-
-            mezzo['skew']  = skew
-
-            print("i: {}, len skew: {}, nxgraph.shape[0]: {}".format(i, len(skew), nxgraph.shape[0]))                                 
-
-            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
-        else:
-            print("(Skipped: {} {})".format(i, nxgraph.shape[0]), end="", flush=True)
-   
-    print("READ DATASET")
-    print("\nLen real dataset {}".format(len(real_dataset)))
-
-    return real_dataset
-
-
-
 
 
 parser = argparse.ArgumentParser()
@@ -155,23 +49,168 @@ parser.add_argument('--patience', type=int, default=100, help='patience for earl
 parser.add_argument('--read_dataset', type=bool, default=False, help='Use precomputed k-reduced-skew spectrum')
 parser.add_argument('--save_precomputed_skew', type=bool, default=True, help='Save the precomputed k-reduced-skew spectrum')
 parser.add_argument('--multi_orbits', type=bool, default=False, help='Add node features to the sksp')
-
+parser.add_argument('--deterministic', type=bool, default=False, help='Make the training deterministic')
+parser.add_argument('--model', type=int, default=0, help='Pick a different NN')
+parser.add_argument('--a', type=int, default=3, help='Smallest graph we consider')
+parser.add_argument('--b', type=int, default=25, help='Biggest graph we consider')
 
 
 args = parser.parse_args()
 
-#torch.manual_seed(args.seed)
 
-#if torch.cuda.is_available():
-#    torch.cuda.manual_seed(args.seed)
 
-print("\n\n Working with {}\n\n".format(args.dataset))
+
+def create_dataset(dataset, correlation, args):
+    max_n = 0
+    lista_cose_belle = []
+    real_dataset = []
+    len("Original dataset length: {}".format(dataset))
+
+    for i, current_g in enumerate(dataset):
+
+        print("\n\n\n Graph id: {} - ".format(i), end="")
+        
+
+        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
+        if nxgraph.shape[0] > max_n:
+            max_n = nxgraph.shape[0]
+
+        if (nxgraph.shape[0] > args.a) and (nxgraph.shape[0] <= args.b):
+            lista_cose_belle.append(i)
+
+
+            funzione = FuncOnGroup(nxgraph)
+
+
+            if args.multi_orbits:
+                funzione.add_orbit(np.array([nxgraph[i][i] for i in range(nxgraph.shape[0])]))
+                for feature_number in range(dataset[i].x.shape[1]):  
+                    funzione.add_orbit(dataset[i].x[:, feature_number])
+
+
+            skew = reduced_k_correlation(funzione, k=correlation, method="extremedyn", vector=True )
+
+            mezzo = dataset[i].to_dict()
+            mezzo['skew']  = skew
+
+            print("- Graph shape:{} - len-skew: {}".format(nxgraph.shape[0], len(skew)), end='')        
+            if args.save_precomputed_skew:
+                print("Save precomputed skew", end="")
+                if args.multi_orbits:
+                    print("Multi orbits", end="")
+                    path = "{}/{}_{}_mo.pickle".format(args.dataset, correlation, i)
+                    if not os.path.isfile(path):
+                        with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'wb') as handle:
+                            print(" dumped-mo ", end="")
+                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
+                    else: 
+                        print("(file already exist)", end="")           
+                else:
+                    print("-Single orbit-", end="" )
+                    path = "{}/{}_{}.pickle".format(args.dataset, correlation, i)
+                    print("-path: {}".format(path), end='')   
+                    if not os.path.isfile(path):
+                        with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'wb') as handle:
+                            print(" dumped-so ", end="")
+                            pickle.dump(skew, handle, protocol=pickle.HIGHEST_PROTOCOL)       
+                    else: 
+                        print("(file already exist)", end="")
+            else: 
+                print("Not save precomputed skew", end="")
+
+            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
+        else:
+            print("(Skipping-{}, shape: {})".format(i, nxgraph.shape[0]), end="", flush=True)
+    
+    print("\nLen real dataset {}".format(len(real_dataset)))
+    print("Biggest matrix in dataset: {}".format(max_n))
+    return real_dataset
+
+
+def read_dataset(dataset, correlation, args):
+
+    lista_cose_belle = []
+    max_n = 0 
+    real_dataset = []
+    len("Original dataset length: {}".format(dataset))
+
+    for i, current_g in enumerate(dataset):
+        print(".", end="")
+
+        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
+
+        if nxgraph.shape[0] > max_n:
+            print(max_n)
+            print("\n   ")
+            max_n = nxgraph.shape[0]
+
+        if (nxgraph.shape[0] > args.a) and (nxgraph.shape[0] <= args.b):
+            lista_cose_belle.append(i)
+
+            mezzo = dataset[i].to_dict()
+            
+            ##
+            ## python main PROTEINS
+            # Batch(batch=[6674], edge_index=[2, 24804], ptr=[439], x=[6674, 4], y=[438])
+            # x.shape = torch.Size([6604, 4])
+
+            # python extended-main PROTEINS
+            # Batch(batch=[6634], edge_index=[2, 24652], ptr=[439], skew=[438], x=[6634, 4], y=[438])
+            # x.shape = torch.Size([6562, 4])
+
+
+            # main ENZYMES
+            # Batch(batch=[3004], edge_index=[2, 11700], ptr=[166], x=[3004, 21], y=[165])
+            # x.shape = torch.Size([3048, 21])
+
+
+            # extended-main ENZYMES
+            # Batch(batch=[3017], edge_index=[2, 11738], ptr=[166], skew=[165], x=[3017, 21], y=[165])
+            # x.shape= torch.Size([2987, 21])
+
+            ## 
+
+
+            if args.multi_orbits:
+                with open("{}/{}_{}_mo.pickle".format(args.dataset, correlation, i), 'rb') as handle:
+                    skew = pickle.load(handle)
+            else: 
+                with open("{}/{}_{}.pickle".format(args.dataset, correlation, i), 'rb') as handle:
+                    skew = pickle.load(handle)
+
+
+            mezzo['skew']  = skew
+
+            #print("i: {}, len skew: {}, nxgraph.shape[0]: {}".format(i, len(skew), nxgraph.shape[0]))                                 
+            tmp_ = torch_geometric.data.Data.from_dict(mezzo)
+
+            # import IPython
+            # IPython.embed()
+
+            real_dataset.append(tmp_)
+        else:
+            print("(Skipped: {} {})".format(i, nxgraph.shape[0]), end="", flush=True)
+   
+    print("\nLen of filtered dataset {}".format(len(real_dataset)))
+    print("Max element in dataset: {}".format(max_n))
+    print("\n")
+    return real_dataset
+
+
+
+torch.use_deterministic_algorithms(args.deterministic)
+random.seed(args.seed)
+torch.manual_seed(args.seed)
+if torch.cuda.is_available():
+   torch.cuda.manual_seed(args.seed)
+
 
 old_dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
 
 
 
 if args.read_dataset:
+    print("Reading the dataset from file: (args.read_dataset = {})".format(args.read_dataset))
     dataset = read_dataset(old_dataset, args.correlation, args)
 else:  
     print("Computing k-reduced-skew spectrum from scratch")
@@ -187,6 +226,13 @@ args.num_features = old_dataset.num_features
 
 args.initial_nodes_skew = len(dataset[0].skew)
 
+print("\n\n\n Initial nodes skew {}".format(args.initial_nodes_skew))
+
+# import IPython
+# IPython.embed()
+# test passed, all the skew vectors have the same type across different dataset (PROTEINS and NCI1)
+# nonok = [i for i,_ in enumerate(dataset) if dataset[i].skew.dtype != "float32"]
+
 
 
 
@@ -201,6 +247,9 @@ test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
 
 model = Model(args).to(args.device)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+
+
 
 
 def train():

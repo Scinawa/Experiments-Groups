@@ -31,12 +31,10 @@ class Model(torch.nn.Module):
         self.lin2 = torch.nn.Linear(self.nhid, self.nhid // 2)
         self.lin3 = torch.nn.Linear(self.nhid // 2, self.num_classes)
 
+
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
         edge_attr = None
-
-        import pdb
-        pdb.set_trace()
 
         x = F.relu(self.conv1(x, edge_index, edge_attr))
         x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)
@@ -58,45 +56,9 @@ class Model(torch.nn.Module):
         x = F.log_softmax(self.lin3(x), dim=-1)
 
         return x
-    
-    # def forward(self, data):
-    #     x, edge_index, batch = data.x, data.edge_index, data.batch
-    #     edge_attr = None
-
-    #     # print("orig - stopped before conv2")
-    #     # import pdb
-    #     # pdb.set_trace()
-
-    #     x = F.relu(self.conv1(x, edge_index, edge_attr))
-    #     x, edge_index, edge_attr, batch = self.pool1(x, edge_index, edge_attr, batch)
-    #     x1 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
 
 
 
-
-    #     x = F.relu(self.conv2(x, edge_index, edge_attr))
-    #     x, edge_index, edge_attr, batch = self.pool2(x, edge_index, edge_attr, batch)
-    #     x2 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
-
-    #     x = F.relu(self.conv3(x, edge_index, edge_attr))
-    #     x3 = torch.cat([gmp(x, batch), gap(x, batch)], dim=1)
-
-    #     # print("orig- stopped before the sum")
-    #     # import pdb
-    #     # pdb.set_trace()
-
-    #     x = F.relu(x1) + F.relu(x2) + F.relu(x3)   # in resnet
-    #      # skip connection
-
-
-
-    #     x = F.relu(self.lin1(x))
-    #     x = F.dropout(x, p=self.dropout_ratio, training=self.training)
-    #     x = F.relu(self.lin2(x))
-    #     x = F.dropout(x, p=self.dropout_ratio, training=self.training)
-    #     x = F.log_softmax(self.lin3(x), dim=-1)
-
-    #     return x
 
 
 

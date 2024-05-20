@@ -6,51 +6,25 @@ import sys
 
 import torch
 import torch.nn.functional as F
-from models import Model
+from models import Model 
 from torch.utils.data import random_split
 from torch_geometric.data import DataLoader
 from torch_geometric.datasets import TUDataset
 import torch_geometric.utils 
 
-import random
-#random.seed(3)
-#torch.manual_seed(3)
-import warnings
-warnings.filterwarnings("ignore")
-
-# 
-#torch.use_deterministic_algorithms(True)
-
-import networkx as nx
-import tqdm
 
 sys.path.append('/Users/scinawa/workspace/grouptheoretical/multi-orbit-bispectrum-main')
 from spectrum_utils import * 
 from utils import *
 
+import random 
 
-def filter_dataset(dataset):
-    
-    real_dataset = []
-    len("Original dataset length: {}".format(dataset))
-
-    for i, current_g in enumerate(dataset):
-
-        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
-        if (nxgraph.shape[0] <= 25) and (nxgraph.shape[0] > 2):
-            print(".", end="")
-                                         
-            mezzo = dataset[i].to_dict()
-            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
-
-        else:
-            print("(S-{}-{})".format(i, nxgraph.shape[0]), end="", flush=True)
-    print("\nLen real dataset {}".format(len(real_dataset)))
-    return real_dataset
-
-    
+import warnings
+warnings.filterwarnings("ignore")
 
 
+import networkx as nx
+import tqdm
 
 parser = argparse.ArgumentParser()
 
@@ -70,21 +44,54 @@ parser.add_argument('--device', type=str, default='cpu:0', help='specify cuda de
 parser.add_argument('--correlation', type=int, default=2, help='which of the k-correlations do we want to use')
 parser.add_argument('--epochs', type=int, default=1000, help='maximum number of epochs')
 parser.add_argument('--patience', type=int, default=100, help='patience for early stopping')
+parser.add_argument('--deterministic', type=bool, default=False, help='Make the training deterministic')
+parser.add_argument('--model', type=int, default=0, help='Pick a different NN')
+parser.add_argument('--a', type=int, default=2, help='Smallest graph we consider')
+parser.add_argument('--b', type=int, default=25, help='Biggest graph we consider')
 
 args = parser.parse_args()
 
-#torch.manual_seed(args.seed)
-#if torch.cuda.is_available():
-#    torch.cuda.manual_seed(args.seed)
+
+def filter_dataset(dataset):
+    
+    real_dataset = []
+    len("Original dataset length: {}".format(dataset))
+
+    for i, current_g in enumerate(dataset):
+
+        nxgraph = nx.to_numpy_array(torch_geometric.utils.to_networkx(current_g) )
+        if (nxgraph.shape[0] > args.a) and (nxgraph.shape[0] <= args.b):
+            print(".", end="")
+                                         
+            mezzo = dataset[i].to_dict()
+            real_dataset.append(torch_geometric.data.Data.from_dict(mezzo))
+
+        else:
+            print("(Skipped: {} {})".format(i, nxgraph.shape[0]), end="", flush=True)
+    print("\nLen of filtered dataset {}".format(len(real_dataset)))
+    return real_dataset
+
+    
+
+
+
+torch.use_deterministic_algorithms(args.deterministic)
+random.seed(args.seed)
+torch.manual_seed(args.seed)
+if torch.cuda.is_available():
+   torch.cuda.manual_seed(args.seed)
 
 print("\n\n Working with {}\n\n".format(args.dataset))
 
-dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
+old_dataset = TUDataset(os.path.join('data', args.dataset), name=args.dataset, use_node_attr=True)
 
-args.num_classes = dataset.num_classes
-args.num_features = dataset.num_features
+print("\n\n Working with {} dataset of length {} \n\n".format(args.dataset, len(old_dataset)))
 
-dataset = filter_dataset(dataset)
+
+args.num_classes = old_dataset.num_classes
+args.num_features = old_dataset.num_features
+
+dataset = filter_dataset(old_dataset)
 
 
 
@@ -98,8 +105,14 @@ train_loader = DataLoader(training_set, batch_size=args.batch_size, shuffle=True
 val_loader = DataLoader(validation_set, batch_size=args.batch_size, shuffle=False)
 test_loader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)
 
-model = Model(args).to(args.device)
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+if args.model == 0:
+    model = Model(args).to(args.device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+elif args.model == 1:
+    pass
+    # not implemented for original experiment
+    #model = Model1(args).to(args.device)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
 def train():
