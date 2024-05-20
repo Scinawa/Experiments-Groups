@@ -15,7 +15,7 @@ import pickle
 # from IPython import embed; embed()
 
 
-sys.path.append('/Users/scinawa/workspace/grouptheoretical/new-experiments/multi-orbit-bispectrum')
+sys.path.append('/Users/scinawa/workspace/grouptheoretical/multi-orbit-bispectrum-main/')
 from spectrum_utils import * 
 from utils import *
 
@@ -119,12 +119,16 @@ def graph_from_fileg6(filepath):
 
 
 
-def generate_undirected(filepath):
+def generate_from_g6(filepath, multi_orbit=True):
     skew_spectrums = {}
     graphs = []
 
-    for k in range(2,8):
-        skew_spectrums["1orbit-{}-corre-dict".format(k)]=[]
+    if multi_orbit:
+        for k in range(2,8):
+            skew_spectrums["2orbit-{}-corre-dict".format(k)]=[]
+    else:
+        for k in range(2,8):
+            skew_spectrums["1orbit-{}-corre-dict".format(k)]=[]
 
 
     for nxgraph in tqdm(graph_from_fileg6(filepath), desc="Generating skew spectrums of all graphs"):
@@ -136,19 +140,26 @@ def generate_undirected(filepath):
         for k in range(2,8):
             print("Creating {}-th correlation".format(k))
 
-            try:
-                func_1o = create_func_on_group_from_matrix_1orbit(graph)
-                #func_2o = create_func_on_group_from_matrix_2orbits(np.array(graph))
+            if multi_orbit:
+                func_ = create_func_on_group_from_matrix_2orbits(np.array(graph))
+                skew_spectrums["2orbit-{}-corre-dict".format(k)].append(
+                    reduced_k_correlation(func_, k=k, method="extremedyn", vector=True))
 
+            else:
+                func_ = create_func_on_group_from_matrix_1orbit(graph)
                 skew_spectrums["1orbit-{}-corre-dict".format(k)].append(
-                    reduced_k_correlation(func_1o, k=k, method="extremedyn", vector=True))
-            except Exception as e:
-                print("Exception: {}".format(e))
+                    reduced_k_correlation(func_, k=k, method="extremedyn", vector=True))
+
 
 
     ############ USE WITH CARE!!!!!! IT WILL OVERWRITE THE PERVIOUSLY COMPUTED FEATURES FILE
-    with open("{}-skew.pickle".format(filepath), 'wb') as handle:
-        pickle.dump((graphs, skew_spectrums), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    if multi_orbit:
+        with open("{}-mo-rsksp.pickle".format(filepath), 'wb') as handle:
+            pickle.dump((graphs, skew_spectrums), handle, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        with open("{}-so-rsksp.pickle".format(filepath), 'wb') as handle:
+            pickle.dump((graphs, skew_spectrums), handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 
 
@@ -157,4 +168,5 @@ if __name__ == "__main__":
     
     
     #generate_random_skew()
-    generate_undirected(sys.argv[1])
+    generate_from_g6(sys.argv[1], multi_orbit=True)
+    generate_from_g6(sys.argv[1], multi_orbit=False)

@@ -90,7 +90,7 @@ def create_T_table_2(k_correlations, kcorre_names):
         indexlen = len(indices)
         dista = sk.metrics.pairwise_distances(k_correlations[kcorre_name])
         i = 0
-        print("--- computed distances ---")
+        #print("{} - comp. dist - ".format(kcorre_name), end=" ")
         while True:
             row = random.choice(list(indices))
 
@@ -116,7 +116,7 @@ def create_T_table_2(k_correlations, kcorre_names):
             indices = indices - group
 
             if len(indices)==0:
-                print("Finished clustering!")
+                #print("(finished clustering)")
                 break
             else:
                 i=i+1
@@ -143,18 +143,22 @@ def create_T_table(k_correlations, kcorre_names):
         for index, vector in enumerate(k_correlations[kcorre_name]):
             #print(index)
             # Convert the vector to a tuple to use it as a dictionary key :) 
-            vector_tuple = tuple(vector)
+            vector_tuple = tuple(np.round(vector, decimals=4))
 
             if vector_tuple in T_tmp[kcorre_name]:
                 # If the vector representation exists in the dictionary, append the index
                 T_tmp[kcorre_name][vector_tuple].append(index)
+                if index==253:
+                    print("found it in if")
             else:
+                if index==253:
+                    print("found it in else")
                 # Oth.. create a new entry with the index
                 T_tmp[kcorre_name][vector_tuple] = [index]
 
         # Finally, convert the dictionary values to sets
         T_sets[kcorre_name] = [set(indices) for indices in T_tmp[kcorre_name].values()]
-    return T_sets
+    return T_sets, T_tmp
 
 
 
@@ -164,10 +168,17 @@ def build_networkx_graph(T, maxk):
 
     breakout = False
 
+    hack = 0
+    try:
+        _ = T['1orbit-2-corre-dict']
+        hack = 1
+    except KeyError:
+        hack = 2
+
     for k in range(maxk, 1, -1):
         #print(k)
-        for subsetz in T['1orbit-{}-corre-dict'.format(k+1)]:
-            for setz in T['1orbit-{}-corre-dict'.format(k)]:
+        for subsetz in T['{}orbit-{}-corre-dict'.format(hack, k+1)]:
+            for setz in T['{}orbit-{}-corre-dict'.format(hack, k)]:
                 #print("k:", k, "subset", subsetz, "set:", setz, "k:", k)
 
 
@@ -180,7 +191,7 @@ def build_networkx_graph(T, maxk):
                         #print("anomaly detected")
             
 
-    for setz in T['1orbit-2-corre-dict']:
+    for setz in T['{}orbit-2-corre-dict'.format(hack)]:
         G.add_edge((0,0), (2,) + tuple(setz))
     return G
 
@@ -203,12 +214,18 @@ def graph_subtraction_edges(G, Gbfs):
 
 def count_bifurcations(grafetto, kcorre_names):
     histogram = {kcorre_name : 0 for kcorre_name in kcorre_names}
-    histogram['1orbit-0-corre-dict'] = 0
+
+    __ = [i for i in kcorre_names]
+    hack = __[0][0]
+
+
+    
+    histogram['{}orbit-0-corre-dict'.format(hack)] = 0
     hits = []
     lottery_tickets = []
     for node in grafetto.nodes():
         if grafetto.out_degree(node)>1:
-            histogram['1orbit-{}-corre-dict'.format(node[0])] +=  grafetto.out_degree(node)  # TODO is this right? consider {1,2,3,4} -> {1,2,3}, {4} or {1,2,3,4} -> {1,2}, {3}, 
+            histogram['{}orbit-{}-corre-dict'.format(hack, node[0])] +=  grafetto.out_degree(node)  # TODO is this right? consider {1,2,3,4} -> {1,2,3}, {4} or {1,2,3,4} -> {1,2}, {3}, 
             hits.append(node)
             if node[0] > 2:      # we can distinguish graphs in this node in the NEXT k of correlation
                 lottery_tickets.append(node)
@@ -218,12 +235,12 @@ def count_bifurcations(grafetto, kcorre_names):
 
 def count_collisions(grafetto, kcorre_names):
     histogram = {kcorre_name : 0 for kcorre_name in kcorre_names}
-    histogram['1orbit-0-corre-dict'] = 0
+    histogram['{}orbit-0-corre-dict'.format(hack)] = 0
     hits = []
     for node in grafetto.nodes():
         #print(grafetto.in_degree(node))
         if grafetto.in_degree(node)>1:
-            histogram['1orbit-{}-corre-dict'.format(node[0])] +=  grafetto.in_degree(node)  # TODO is this right? consider {1,2,3,4} -> {1,2,3}, {4} or {1,2,3,4} -> {1,2}, {3}, 
+            histogram['{}orbit-{}-corre-dict'.format(hack, node[0])] +=  grafetto.in_degree(node)  # TODO is this right? consider {1,2,3,4} -> {1,2,3}, {4} or {1,2,3,4} -> {1,2}, {3}, 
             hits.append(node)
     return histogram, hits
 
