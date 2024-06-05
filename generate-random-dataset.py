@@ -66,11 +66,11 @@ def generate_random_skew(multi_orbit=True):
             pickle.dump((graphs, skew_spectrums), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def generate_all_undirected():
+def generate_all_undirected(multi_orbit=False):
     skew_spectrums = {}
     graphs = []
 
-    for k in range(2,8):
+    for k in range(2,9):
         skew_spectrums["1orbit-{}-corre-dict".format(k)]=[]
 
 
@@ -81,11 +81,11 @@ def generate_all_undirected():
             graph = nx.to_numpy_array(nxgraph)
             graphs.append(nxgraph)
 
-            for k in range(2,8):
+            for k in range(2,9):
                 print("Creating {}-th correlation".format(k))
 
                 try:
-                    if multi_orbit:
+                    if multi_orbit == True:
                         print("multi-orbit")
                         func_2o = create_func_on_group_from_matrix_2orbits(np.array(graph))
 
@@ -102,7 +102,7 @@ def generate_all_undirected():
 
 
     ############ USE WITH CARE!!!!!! IT WILL OVERWRITE THE PERVIOUSLY COMPUTED FEATURES FILE
-    with open("megadump-atlas.pickle", 'wb') as handle:
+    with open("megadump-atlas_7.pickle", 'wb') as handle:
         pickle.dump((graphs, skew_spectrums), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
@@ -114,11 +114,11 @@ def generate_all_undirected():
 
 if __name__ == "__main__":
     print("Generating the skew-spectra from matrices..")
-    print("quantity, nodes, p")
+    print("python scriptname.py number_of_graphs_to_generate, number_of_nodes, p_probability_of_edge")
     
     ### GENERATE RANDOM GRAPHS
     #generate_random_skew(multi_orbit=True)
     
     
     # OR generate all graphs from the atlas
-    #generate_all_undirected()
+    generate_all_undirected()
