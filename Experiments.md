@@ -66,9 +66,49 @@ Il codice e' diviso in `main.py` e `models.py` per le cose originali, e le nostr
 Questo codice puo ricalcolare gli skew-spectra on the fly, ma puo anche fare dump o usare skew-spectra che arrivano da HPC machines. 
 L'idea della classe `Model` e'che facciamo da una parte la convoluzione dei grafi (as standard in ML) ma poi ci appiccichiamo come dei nabbi le features dello skew-spectrum. 
 La conclusione e'che questa cosa va meglio se prendi i modelli migliori, i.e. not on average. 
-However, ci sembra che abbiano fatto cosi anche nel paper che stiamo usando per le comparison: hanno riportato i modelli che generalizzano MEGLIO e non l'average generalization accuracy. 
+However, ci sembra che abbiano fatto cosi anche nel paper che stiamo usando per le comparison: hanno riportato i modelli che generalizzano MEGLIO e non l'average generalization accuracy.  
+
+Su laptop possiamo fare grafi fino a 25 nodi, ma con HPC machines ero arrivato fino a 50/51.
 
 
 ![image](./HGP-SL-extended/accuracies-PROTEINS.png)
 ![image](./HGP-SL-extended/accuracies-second-PROTEINS.png)
 ![image](./HGP-SL-extended/accuracies-third-PROTEINS.png)
+
+
+#### Split e validation test set 
+random_split comes from from torch.utils.data import random_split
+
+
+```
+num_training = int(len(dataset) * 0.8)
+num_val = int(len(dataset) * 0.1)
+num_test = len(dataset) - (num_training + num_val)
+training_set, validation_set, test_set = random_split(dataset, [num_training, num_val, num_test])
+
+```
+
+
+### PROTEINS e'fatto con n=59
+
+
+## ALGORITHMO
+Def nome nodo: 
+(k, [id, id, ...])
+k = k=correlation, 
+id = id di grafi con quel skewthign
+
+per ogni nodo a depth k=3 o 4 (quella che ci interessa con 1043 nodi) vediamo il nome del nodo 
+
+tmp_id_interesting_graph_ = 0
+tmp_id_interesting_graph = 0
+for g in G_dfs:
+   if g starts with 3 # g[0]==3:
+        if len(g.name) > 2:
+              print (g.name) 
+              tmp_id_interesting_graph = g.name[1]
+              tmp_id_interesting_graph_ = g.name[2]
+
+
+
+print(raw_dataset[0][tmp_id_interesting_graph])   
